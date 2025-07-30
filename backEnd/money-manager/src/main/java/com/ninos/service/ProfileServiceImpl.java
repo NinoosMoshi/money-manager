@@ -6,6 +6,7 @@ import com.ninos.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -13,6 +14,7 @@ import java.util.UUID;
 public class ProfileServiceImpl implements ProfileService {
 
     private final ProfileRepository profileRepository;
+    private final EmailService emailService;
 
 
     @Override
@@ -20,6 +22,14 @@ public class ProfileServiceImpl implements ProfileService {
         ProfileEntity newProfile = toEntity(profileDTO);
         newProfile.setActivationToken(UUID.randomUUID().toString());
         ProfileEntity savedProfile = profileRepository.save(newProfile);
+
+        // send activation email
+        String activationLink = "http://localhost:8080/api/v1.0/activate?token=" + savedProfile.getActivationToken();
+        String subject = "Activate your Money Manager Account";
+        String body = "Click on the following link to activate your Money Manager Account:\n" + activationLink;
+
+        emailService.sendEmail(savedProfile.getEmail(), subject, body);
+
         return toDTO(savedProfile);
     }
 
@@ -47,6 +57,30 @@ public class ProfileServiceImpl implements ProfileService {
                 .createdAt(profileEntity.getCreatedAt())
                 .updatedAt(profileEntity.getUpdatedAt())
                 .build();
+    }
+
+
+
+//    public boolean activateProfile(String activationToken) {
+//        Optional<ProfileEntity> optionalProfile = profileRepository.findByActivationToken(activationToken);
+//        if (optionalProfile.isPresent()) {
+//            ProfileEntity profile = optionalProfile.get();
+//            profile.setIsActive(true);
+//            profileRepository.save(profile);
+//            return true;
+//        }
+//        return false;
+//    }
+
+    @Override
+    public boolean activateProfile(String activationToken) {
+        return profileRepository.findByActivationToken(activationToken)
+                .map(profile -> {
+                    profile.setIsActive(true);
+                    profileRepository.save(profile);
+                    return true;
+                })
+                .orElse(false);
     }
 
 
